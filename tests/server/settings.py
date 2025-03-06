@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django_resilient_webhook",
+    "django_resilient_webhook.apps.DRWAppConfig",
 ]
 
 MIDDLEWARE = [
