@@ -6,8 +6,12 @@ authors = ["Naveen Anil <naveenms01@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.9"
+python = "<4,>=3.9"
 django = ">=4.2.0"
+google-cloud-tasks = "^2.19.1"
+django-environ = "^0.12.0"
+python-dotenv = "^1.0.1"
+django-unfold = "^0.50.0"
 
 
 [tool.poetry.group.dev.dependencies]

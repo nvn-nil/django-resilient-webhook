@@ -43,15 +43,13 @@ INSTALLED_APPS = [
     "unfold.contrib.forms",
     "unfold.contrib.guardian",
     "unfold.contrib.simple_history",
-    "django_gcp",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django_maxwell",
-    "debug_toolbar",
+    "django_resilient_webhook",
 ]
 
 MIDDLEWARE = [
@@ -60,7 +58,6 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -139,11 +136,4 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # DJANGO-MAXWELL
-MAXWELL_ACTIVITY_STREAM_TABLE_PATH = env.str("MAXWELL_ACTIVITY_STREAM_TABLE_PATH")
-MAXWELL_WAREHOUSE_TABLE_PATH = env.str("MAXWELL_WAREHOUSE_TABLE_PATH")
-MAXWELL_SERVICE_ACCOUNT_INFO = env.str("MAXWELL_SERVICE_ACCOUNT_INFO")
-MAXWELL_DATA_SINK_BUCKET = env.str("MAXWELL_DATA_SINK_BUCKET")
-MAXWELL_EVENT_RECEIVER_BASE_ENDPOINT = "https://django-maxwell.loca.lt/integrations/django_maxwell/events/"
-
-# DJANGO-GCP
-GCP_STORAGE_EXTRA_STORES = {"maxwell_data_sink": {"bucket_name": MAXWELL_DATA_SINK_BUCKET}}
+DRW_GCP_WEBHOOK_QUEUE_PATH = env.str("DRW_GCP_WEBHOOK_QUEUE_PATH")
