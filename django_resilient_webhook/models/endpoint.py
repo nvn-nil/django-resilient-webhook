@@ -41,18 +41,28 @@ def short_sha(value, digits=8):
 
 
 class DispatchEvent(Model):
+    dispatched = DateTimeField(
+        blank=False, null=False, auto_now_add=True, help_text="Datetime the Endpoint was dispatched"
+    )
+
     endpoint = ForeignKey(
         "django_resilient_webhook.Endpoint",
         on_delete=PROTECT,
         help_text="The webhook endpoint which was dispactched",
         related_name="dispatch_events",
     )
-    webhook_integration = ForeignKey(
+    webhook = ForeignKey(
         "django_resilient_webhook.Webhook",
         on_delete=PROTECT,
+        null=True,
+        blank=True,
         help_text="The Webhook through which the endpoint was dispactched",
         related_name="dispatch_events",
     )
+
+    payload = JSONField(null=True, blank=True, default={}, help_text="If provided, data posted to the endpoint")
+
+    task_name = CharField(max_length=255, null=False, blank=False)
 
 
 class Endpoint(Model):
@@ -71,8 +81,26 @@ class Endpoint(Model):
         null=True, blank=True, default={}, help_text="If provided, this data will be passed in along with the payload"
     )
 
-    def post(self, payload, headers=None):
+    def post(self, payload, headers=None, webhook=None):
         queue_options = parse_queue_setting()
+
+        webhook_data = (
+            {
+                "version": webhook.version,
+                "content_type": {
+                    "app_labeled_name": webhook.content_type.app_labeled_name,
+                    "name": webhook.content_type.name,
+                    "app_label": webhook.content_type.app_label,
+                    "model": webhook.content_type.model,
+                },
+                "object_id": webhook.content_object.id,
+            }
+            if webhook
+            else None
+        )
+
+        datetime_now_utc = datetime.now(timezone.utc)
+        datetime_now_local = datetime.now()
 
         data = {
             "payload": payload,
@@ -84,18 +112,23 @@ class Endpoint(Model):
                 "label": self.label,
                 "data": self.data,
             },
-            "published": {
-                "utc": datetime.now(timezone.utc).isoformat(),
-                "local": datetime.now(timezone.utc).isoformat(),
+            "webhook": webhook_data,
+            "dispatched": {
+                "utc": datetime_now_utc.isoformat(),
+                "local": datetime_now_local.isoformat(),
             },
         }
-        create_http_task(
+        task = create_http_task(
             project=queue_options["project_id"],
             location=queue_options["location"],
             queue=queue_options["queue_id"],
             url=self.url,
             json_payload=data,
             headers=headers,
+        )
+
+        DispatchEvent.objects.create(
+            dispatched=datetime_now_utc, endpoint=self, webhook=webhook, payload=data, task_name=task.name
         )
 
 
@@ -117,7 +150,7 @@ class Webhook(Model):
         endpoints = self.endpoints.filter(label=endpoint_label)
 
         for endpoint in endpoints:
-            endpoint.post(payload, headers=headers)
+            endpoint.post(payload, headers=headers, webhook=self)
 
 
 class WebhookableModel(Model):

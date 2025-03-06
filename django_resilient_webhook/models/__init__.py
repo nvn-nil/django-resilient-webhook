@@ -1,4 +1,4 @@
-from .endpoint import Endpoint, Webhook
+from .endpoint import DispatchEvent, Endpoint, Webhook
 
 
-__all__ = ["Endpoint", "Webhook"]
+__all__ = ["Endpoint", "Webhook", "DispatchEvent"]
