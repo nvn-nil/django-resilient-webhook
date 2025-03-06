@@ -68,6 +68,12 @@ class Webhook(Model):
             Index(fields=["content_type", "object_id"]),
         ]
 
+    def post(self, endpoint_label, url, payload, headers=None):
+        endpoints = self.endpoints.filter(label=endpoint_label)
+
+        for endpoint in endpoints:
+            endpoint.post(url, payload, headers=headers)
+
 
 class WebhookableModel(Model):
     webhook_integrations = GenericRelation("django_resilient_webhook.Webhook")
