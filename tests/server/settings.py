@@ -18,7 +18,6 @@ import environ
 env = environ.Env()
 env.read_env()
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -137,3 +136,4 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # DJANGO-MAXWELL
 DRW_GCP_WEBHOOK_QUEUE_PATH = env.str("DRW_GCP_WEBHOOK_QUEUE_PATH")
+print("DRW_GCP_WEBHOOK_QUEUE_PATH", DRW_GCP_WEBHOOK_QUEUE_PATH)

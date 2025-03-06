@@ -1,5 +1,8 @@
+import hashlib
+from datetime import datetime, timezone
 from uuid import uuid4
 
+from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import (
@@ -17,6 +20,24 @@ from django.db.models import (
     TextField,
     UUIDField,
 )
+
+from django_resilient_webhook.utilities.create_task import create_http_task
+
+
+def parse_queue_setting():
+    queue_path = settings.DRW_GCP_WEBHOOK_QUEUE_PATH
+
+    queue_path = queue_path.replace("projects/", "") if queue_path.startswith("projects/") else queue_path
+
+    print("queue_path", queue_path.split("/"))
+
+    project_id, _, location, _, queue_id = queue_path.split("/")
+    return {"project_id": project_id, "location": location, "queue_id": queue_id}
+
+
+def short_sha(value, digits=8):
+    """Calculate a short sha from an input string, with a certain degree of uniqueness"""
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:digits]
 
 
 class DispatchEvent(Model):
@@ -50,8 +71,32 @@ class Endpoint(Model):
         null=True, blank=True, default={}, help_text="If provided, this data will be passed in along with the payload"
     )
 
-    def post(self, url, payload, headers=None):
-        pass
+    def post(self, payload, headers=None):
+        queue_options = parse_queue_setting()
+
+        data = {
+            "payload": payload,
+            "endpoint": {
+                "id": str(self.id),
+                "created": self.created.isoformat(),
+                "last_modified": self.last_modified.isoformat(),
+                "url": self.url,
+                "label": self.label,
+                "data": self.data,
+            },
+            "published": {
+                "utc": datetime.now(timezone.utc).isoformat(),
+                "local": datetime.now(timezone.utc).isoformat(),
+            },
+        }
+        create_http_task(
+            project=queue_options["project_id"],
+            location=queue_options["location"],
+            queue=queue_options["queue_id"],
+            url=self.url,
+            json_payload=data,
+            headers=headers,
+        )
 
 
 class Webhook(Model):
@@ -68,11 +113,11 @@ class Webhook(Model):
             Index(fields=["content_type", "object_id"]),
         ]
 
-    def post(self, endpoint_label, url, payload, headers=None):
+    def post(self, endpoint_label, payload, headers=None):
         endpoints = self.endpoints.filter(label=endpoint_label)
 
         for endpoint in endpoints:
-            endpoint.post(url, payload, headers=headers)
+            endpoint.post(payload, headers=headers)
 
 
 class WebhookableModel(Model):
