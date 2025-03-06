@@ -64,6 +64,9 @@ class DispatchEvent(Model):
 
     task_name = CharField(max_length=255, null=False, blank=False)
 
+    def __str__(self):
+        return f"{self.webhook}, {self.endpoint}, {self.task_name.split('/')[-1]}"
+
 
 class Endpoint(Model):
     created = DateTimeField(blank=False, null=False, auto_now_add=True, help_text="Datetime the Endpoint was created")
@@ -80,6 +83,9 @@ class Endpoint(Model):
     data = JSONField(
         null=True, blank=True, default={}, help_text="If provided, this data will be passed in along with the payload"
     )
+
+    def __str__(self):
+        return f"{self.label}, {self.created}"
 
     def post(self, payload, headers=None, webhook=None):
         queue_options = parse_queue_setting()
@@ -145,6 +151,9 @@ class Webhook(Model):
         indexes = [
             Index(fields=["content_type", "object_id"]),
         ]
+
+    def __str__(self):
+        return f"{self.content_type} {self.object_id}, v{self.version}"
 
     def post(self, endpoint_label, payload, headers=None):
         endpoints = self.endpoints.filter(label=endpoint_label)
