@@ -2,7 +2,7 @@
 name = "django-resilient-webhook"
 version = "0.1.0"
 description = ""
-authors = ["Naveen Anil <naveen.anil@wind-pioneers.com>"]
+authors = ["Naveen Anil <naveenms01@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -12,6 +12,7 @@ django = ">=4.2.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
+pre-commit = "^4.1.0"
 
 [build-system]
 requires = ["poetry-core"]
