@@ -10,3 +10,4 @@ git config --global --add safe.directory /workspaces/django-resilient-webhook
 
 # Install precommit hooks
 pre-commit install && pre-commit install -t commit-msg
+pre-commit install-hooks
