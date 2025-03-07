@@ -60,7 +60,7 @@ class DispatchEvent(Model):
         related_name="dispatch_events",
     )
 
-    payload = JSONField(null=True, blank=True, default={}, help_text="If provided, data posted to the endpoint")
+    payload = JSONField(null=True, blank=True, default=dict, help_text="If provided, data posted to the endpoint")
 
     task_name = CharField(max_length=255, null=False, blank=False)
 
@@ -81,7 +81,7 @@ class Endpoint(Model):
     url = TextField(null=False, blank=False, help_text="URL to an post-able endpoint")
     label = SlugField(null=False, blank=False, help_text="Identifier for this endpoint")
     data = JSONField(
-        null=True, blank=True, default={}, help_text="If provided, this data will be passed in along with the payload"
+        null=True, blank=True, default=dict, help_text="If provided, this data will be passed in along with the payload"
     )
 
     def __str__(self):
