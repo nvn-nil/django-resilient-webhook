@@ -10,9 +10,4 @@ class DRWAppConfig(AppConfig):
     verbose_name = _("Django Resilient Webhook")
 
     def ready(self):
-        # Import tasks and signals only once the app is ready, in order to register them
-        # from . import (
-        #     signals,  # noqa:F401, pylint: disable=unused-import, import-outside-toplevel
-        #     tasks,  # noqa: F401, pylint: disable=unused-import, import-outside-toplevel
-        # )
-        pass
+        from . import signals  # noqa:F401, pylint: disable=unused-import, import-outside-toplevel
