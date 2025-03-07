@@ -1,5 +1,4 @@
 import hashlib
-from datetime import datetime, timezone
 from uuid import uuid4
 
 from django.conf import settings
@@ -22,6 +21,7 @@ from django.db.models import (
 )
 
 from django_resilient_webhook.utilities.create_task import create_http_task
+from django_resilient_webhook.utilities.event_processing import serialize_event
 
 
 def parse_queue_setting():
@@ -90,40 +90,8 @@ class Endpoint(Model):
     def post(self, payload, headers=None, webhook=None):
         queue_options = parse_queue_setting()
 
-        webhook_data = (
-            {
-                "version": webhook.version,
-                "content_type": {
-                    "app_labeled_name": webhook.content_type.app_labeled_name,
-                    "name": webhook.content_type.name,
-                    "app_label": webhook.content_type.app_label,
-                    "model": webhook.content_type.model,
-                },
-                "object_id": webhook.content_object.id,
-            }
-            if webhook
-            else None
-        )
+        data, headers = serialize_event(payload, self, webhook=webhook, headers=headers)
 
-        datetime_now_utc = datetime.now(timezone.utc)
-        datetime_now_local = datetime.now()
-
-        data = {
-            "payload": payload,
-            "endpoint": {
-                "id": str(self.id),
-                "created": self.created.isoformat(),
-                "last_modified": self.last_modified.isoformat(),
-                "url": self.url,
-                "label": self.label,
-                "data": self.data,
-            },
-            "webhook": webhook_data,
-            "dispatched": {
-                "utc": datetime_now_utc.isoformat(),
-                "local": datetime_now_local.isoformat(),
-            },
-        }
         task = create_http_task(
             project=queue_options["project_id"],
             location=queue_options["location"],
@@ -134,7 +102,7 @@ class Endpoint(Model):
         )
 
         DispatchEvent.objects.create(
-            dispatched=datetime_now_utc, endpoint=self, webhook=webhook, payload=data, task_name=task.name
+            dispatched=data["dispatched"]["utc"], endpoint=self, webhook=webhook, payload=data, task_name=task.name
         )
 
 

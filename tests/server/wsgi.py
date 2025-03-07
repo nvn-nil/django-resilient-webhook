@@ -11,6 +11,8 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
+from .signals import *  # noqa: F401, F403, pylint: disable=unused-import
+
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "server.settings")
 

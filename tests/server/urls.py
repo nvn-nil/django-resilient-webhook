@@ -16,18 +16,9 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
+
+from django_resilient_webhook import urls as drw_urlpatterns
 
 
-# from django.urls import include, path, re_path
-# from django_resilient_webhook.views import file_event_handler
-
-
-urlpatterns = [
-    path("admin/", admin.site.urls),
-    # path(
-    #     r"events/file/<data_type>/<uuid:file_id>",
-    #     file_event_handler,
-    #     name="resilient-webook",
-    # ),
-]
+urlpatterns = [path("admin/", admin.site.urls), path("events/", include(drw_urlpatterns, "drw"))]
