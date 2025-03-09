@@ -1,5 +1,4 @@
-from django.contrib.contenttypes.fields import GenericRelation
-from django.db.models import Model, TextField
+from django.db.models import ManyToManyField, Model, TextField
 
 from django_resilient_webhook.signals import connect_signals_to_class
 
@@ -9,8 +8,13 @@ ALLOWED_WEBHOOK_EVENTS = ["create", "update", "delete"]
 
 class WebhookableModel(Model):
     WEBHOOK_EVENTS = []
+    WEBHOOK_SERIALIZED_FIELDS = ["pk"]
 
-    webhooks = GenericRelation("django_resilient_webhook.Webhook")
+    webhooks = ManyToManyField(
+        "django_resilient_webhook.Webhook",
+        blank=True,
+        help_text="Webhooks related to this object",
+    )
 
     def __init_subclass__(cls, **kwargs):
         connect_signals_to_class(cls)
@@ -23,11 +27,23 @@ class WebhookableModel(Model):
 
         super().save(*args, **kwargs)
 
+    def post(self, webhook_version, endpoint_label, payload, headers=None):
+        for webhook in self.webhooks.filter(version=webhook_version):
+            webhook.post(endpoint_label, payload, headers=headers)
+
     class Meta:
         abstract = True
 
 
 class Player(WebhookableModel):
-    WEBHOOK_EVENTS = ["create"]
+    WEBHOOK_EVENTS = ["create", "update", "delete"]
+    WEBHOOK_SERIALIZED_FIELDS = ["name", "webhooks"]
+
+    name = TextField()
+
+
+class Developer(WebhookableModel):
+    WEBHOOK_EVENTS = ["create", "update", "delete"]
+    WEBHOOK_SERIALIZED_FIELDS = ["name", "webhooks"]
 
     name = TextField()

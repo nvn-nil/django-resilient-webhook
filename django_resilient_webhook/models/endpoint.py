@@ -19,7 +19,11 @@ class Endpoint(Model):
 
     id = UUIDField(primary_key=True, default=uuid4, help_text="Universally Unique ID")
     url = TextField(null=False, blank=False, help_text="URL to an post-able endpoint")
-    label = SlugField(null=False, blank=False, help_text="Identifier for this endpoint")
+    label = SlugField(
+        null=False,
+        blank=False,
+        help_text="Identifier for this endpoint. Labels 'create', 'update', and 'delete' will be connected to model lifecycle",
+    )
     data = JSONField(
         null=True, blank=True, default=dict, help_text="If provided, this data will be passed in along with the payload"
     )

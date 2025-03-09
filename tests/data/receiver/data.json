@@ -13,14 +13,7 @@
     }
   },
   "webhook": {
-    "version": "1",
-    "content_type": {
-      "app_labeled_name": "auth | user",
-      "name": "user",
-      "app_label": "auth",
-      "model": "user"
-    },
-    "object_id": 1
+    "version": "1"
   },
   "dispatched": {
     "utc": "2025-03-07T10:11:40.749672+00:00",
