@@ -4,20 +4,7 @@ from datetime import datetime, timezone
 
 def serialize_event(data, endpoint, webhook=None, headers=None):
     """Prepare payload for dispatch"""
-    webhook_data = (
-        {
-            "version": webhook.version,
-            "content_type": {
-                "app_labeled_name": webhook.content_type.app_labeled_name,
-                "name": webhook.content_type.name,
-                "app_label": webhook.content_type.app_label,
-                "model": webhook.content_type.model,
-            },
-            "object_id": webhook.content_object.id,
-        }
-        if webhook
-        else None
-    )
+    webhook_data = {"version": webhook.version} if webhook else None
 
     datetime_now_utc = datetime.now(timezone.utc)
     datetime_now_local = datetime.now()
@@ -62,8 +49,6 @@ def deserialize_event(request):
     sender_webhook = data["webhook"]
     if sender_webhook:
         assert "version" in sender_webhook
-        assert "content_type" in sender_webhook
-        assert "object_id" in sender_webhook
 
     sender_dispatched = data["dispatched"]
     assert "utc" in sender_dispatched

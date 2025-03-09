@@ -2,8 +2,6 @@ import json
 from datetime import datetime
 
 import pytest
-from django.contrib.auth.models import Group
-from django.contrib.contenttypes.models import ContentType
 from django.test import RequestFactory
 
 from django_resilient_webhook.models import Endpoint, Webhook
@@ -53,12 +51,9 @@ def test_serializing_data_without_webhook():
 
 @pytest.mark.django_db
 def test_serializing_data_with_webhook():
-    group = Group.objects.create(name="group")
-    group_type = ContentType.objects.get_for_model(Group)
-
     data = {"send": "data"}
     endpoint = Endpoint.objects.create(url="http://asd.gef", label="label", data={"stored": "data"})
-    webhook = Webhook.objects.create(version="1", content_type=group_type, object_id=group.id)
+    webhook = Webhook.objects.create(version="1")
     webhook.endpoints.set([endpoint])
 
     send_data, send_headers = serialize_event(data, endpoint, webhook=webhook, headers={"test-header": "test-value"})
@@ -71,16 +66,7 @@ def test_serializing_data_with_webhook():
         "label": endpoint.label,
         "data": endpoint.data,
     }
-    assert send_data["webhook"] == {
-        "version": webhook.version,
-        "content_type": {
-            "app_labeled_name": webhook.content_type.app_labeled_name,
-            "name": webhook.content_type.name,
-            "app_label": webhook.content_type.app_label,
-            "model": webhook.content_type.model,
-        },
-        "object_id": webhook.content_object.id,
-    }
+    assert send_data["webhook"] == {"version": webhook.version}
     assert datetime.fromisoformat(send_data["dispatched"]["utc"])
     assert datetime.fromisoformat(send_data["dispatched"]["local"])
     assert send_headers == {"test-header": "test-value"}
@@ -88,12 +74,9 @@ def test_serializing_data_with_webhook():
 
 @pytest.mark.django_db
 def test_deserializing_data():
-    group = Group.objects.create(name="group")
-    group_type = ContentType.objects.get_for_model(Group)
-
     data = {"send": "data"}
     endpoint = Endpoint.objects.create(url="http://asd.gef", label="label", data={"stored": "data"})
-    webhook = Webhook.objects.create(version="1", content_type=group_type, object_id=group.id)
+    webhook = Webhook.objects.create(version="1")
     webhook.endpoints.set([endpoint])
 
     send_data, _ = serialize_event(data, endpoint, webhook=webhook)
