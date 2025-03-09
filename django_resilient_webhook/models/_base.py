@@ -1,4 +1,4 @@
-from django.db.models import ManyToManyField, Model, TextField
+from django.db.models import ManyToManyField, Model
 
 from django_resilient_webhook.signals import connect_signals_to_class
 
@@ -33,17 +33,3 @@ class WebhookableModel(Model):
 
     class Meta:
         abstract = True
-
-
-class Player(WebhookableModel):
-    WEBHOOK_EVENTS = ["create", "update", "delete"]
-    WEBHOOK_SERIALIZED_FIELDS = ["name", "webhooks"]
-
-    name = TextField()
-
-
-class Developer(WebhookableModel):
-    WEBHOOK_EVENTS = ["create", "update", "delete"]
-    WEBHOOK_SERIALIZED_FIELDS = ["name", "webhooks"]
-
-    name = TextField()
