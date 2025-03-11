@@ -28,7 +28,7 @@ class WebhookableModel(Model):
         super().save(*args, **kwargs)
 
     def post(self, webhook_version, endpoint_label, payload, headers=None):
-        for webhook in self.webhooks.filter(version=webhook_version):
+        for webhook in self.webhooks.filter(version=webhook_version, active=True):
             webhook.post(endpoint_label, payload, headers=headers)
 
     class Meta:

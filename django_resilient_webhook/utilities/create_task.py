@@ -2,6 +2,7 @@ import datetime
 import json
 from typing import Dict, Optional
 
+from django.conf import settings
 from google.cloud import tasks_v2
 from google.protobuf import duration_pb2, timestamp_pb2
 
@@ -30,6 +31,9 @@ def create_http_task(
     :param dict headers: Extra headers to the http request
     :return tasks_v2.Task The newly created task.
     """
+
+    if getattr(settings, "DRW_SILENCE_WEBHOOKS", False):
+        return
 
     # Create a client.
     client = tasks_v2.CloudTasksClient()
