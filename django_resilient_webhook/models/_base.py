@@ -33,11 +33,3 @@ class WebhookableModel(Model):
 
     class Meta:
         abstract = True
-
-
-class Player(WebhookableModel):
-    WEBHOOK_SERIALIZED_FIELDS = ["name"]
-
-    from django.db.models import CharField
-
-    name = CharField(max_length=64, null=False, blank=False)
