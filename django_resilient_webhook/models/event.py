@@ -30,3 +30,38 @@ class DispatchEvent(Model):
 
     def __str__(self):
         return f"{self.webhook}, {self.endpoint}, {self.task_name.split('/')[-1]}"
+
+
+class ReceivedEvent(Model):
+
+    DISCARDED_DUPLICATE_TASK_NAME = "discard-duplicate-task-name"
+    DISCARDED_OUT_OF_ORDER = "discard-out-of-order"
+    REJECTED_OUT_OF_ORDER = "reject-out-of-order"
+    ACCEPTED = "accepted"
+
+    STATUS_CHOICES = [
+        (DISCARDED_DUPLICATE_TASK_NAME, "Discarded duplicate task"),
+        (REJECTED_OUT_OF_ORDER, "Rejected out of order"),
+        (ACCEPTED, "Accepted"),
+    ]
+
+    id = UUIDField(primary_key=True, default=uuid4, help_text="Universally Unique ID")
+    created = DateTimeField(blank=False, null=False, auto_now_add=True, help_text="Datetime the event was created")
+
+    payload = JSONField(null=False, blank=False, default=dict, help_text="If provided, data posted to the endpoint")
+    sender_endpoint = JSONField(
+        null=False,
+        blank=False,
+        default=dict,
+        help_text="The sender endpoint data which contains information about the sender Endpoint instance which posted this",
+    )
+    sender_webhook = JSONField(
+        null=False,
+        blank=False,
+        default=dict,
+        help_text="The sender webhook data which contains information about the sender Webhook instance which posted this",
+    )
+    dispatched_utc = DateTimeField(blank=False, null=False, help_text="UTC datetime the Endpoint was dispatched")
+    headers = JSONField(null=False, blank=False, default=dict, help_text="The header data of the posted request")
+
+    status = CharField(max_length=64, choices=STATUS_CHOICES, null=False, blank=False)

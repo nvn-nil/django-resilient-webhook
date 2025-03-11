@@ -6,7 +6,8 @@ from django_resilient_webhook.utilities.model_serializer import serialize_model_
 
 drw_event_receive = Signal()
 drw_event_parse_success = Signal()
-drw_event_parse_fail = Signal()
+drw_event_reject = Signal()
+drw_event_discard = Signal()
 
 
 def save_webhookable_subclass(**kwargs):

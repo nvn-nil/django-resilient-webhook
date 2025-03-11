@@ -1,6 +1,99 @@
 import json
 from datetime import datetime, timezone
 
+from django.http import HttpResponse
+
+from django_resilient_webhook.signals import (
+    drw_event_discard,
+    drw_event_parse_success,
+    drw_event_receive,
+    drw_event_reject,
+)
+
+
+def respond_to_event(status_code, request, event=None, status=None):
+    from django_resilient_webhook.models import ReceivedEvent
+
+    if 200 <= status_code < 300:
+        if status_code == 202:
+            drw_event_parse_success.send(
+                sender=None,
+                event=event,
+                request=request,
+            )
+        else:
+            drw_event_discard.send(
+                sender=None,
+                event=event,
+                request=request,
+            )
+        ReceivedEvent.objects.create(
+            payload=event["payload"],
+            sender_endpoint=event["sender_endpoint"],
+            sender_webhook=event["sender_webhook"],
+            dispatched_utc=datetime.fromisoformat(event["dispatched"]["utc"]),
+            headers=event["headers"],
+            status=status,
+        )
+    else:
+        drw_event_reject.send(sender=None, request=request, event=event, status=status)
+
+    return HttpResponse(status=status_code)
+
+
+def process_webhook_request(request):
+    """
+    Check and accept or reject received event
+        - Reject non-POST requests
+        - Discard duplicate events
+        - Discard out of order update events
+        - Reject out of order update events before create event
+    """
+    if request.method == "POST":
+        from django_resilient_webhook.models import ReceivedEvent
+
+        drw_event_receive.send(sender=None, request=request)
+
+        data = deserialize_event(request)
+
+        filter_kwargs = {"headers__X-Cloudtasks-Taskname": data["headers"]["X-Cloudtasks-Taskname"]}
+        duplicate_events = ReceivedEvent.objects.filter(**filter_kwargs)
+
+        if duplicate_events:
+            respond_to_event(208, request, event=data, status=ReceivedEvent.DISCARDED_DUPLICATE_TASK_NAME)
+
+        # Model event
+        if data["payload"] and "model" in data["payload"]:
+            if data["sender_endpoint"]["label"] in ["update", "delete"]:
+                received_create_event = ReceivedEvent.objects.filter(
+                    payload__model=data["payload"]["model"],
+                    payload__pk=data["payload"]["pk"],
+                    sender_endpoint__label="create",
+                )
+                if not received_create_event:
+                    # Reject it assuming this event was received out of order and 'create' might reach after a while
+                    respond_to_event(405, request, event=data, status=ReceivedEvent.REJECTED_OUT_OF_ORDER)
+
+            filter_kwargs = {
+                # The model instance which triggered the event
+                "payload__model": data["payload"]["model"],
+                "payload__pk": data["payload"]["pk"],
+                # The label is one of create, update or delete
+                "sender_endpoint__label": data["sender_endpoint"]["label"],
+                # Reject the event a later event of the same label was processed
+                # Eg, if update which was triggered first reaches after an update triggered second due to some reason
+                # In this case, there's no reason to process the older but newly received event
+                "dispatched_utc__gte": datetime.fromisoformat(data["dispatched"]["utc"]),
+            }
+            more_recent_events = ReceivedEvent.objects.filter(**filter_kwargs)
+
+            if more_recent_events:
+                respond_to_event(208, request, event=data, status=ReceivedEvent.DISCARDED_OUT_OF_ORDER)
+
+        respond_to_event(202, request, event=data, status=ReceivedEvent.ACCEPTED)
+    else:
+        respond_to_event(405, request)
+
 
 def serialize_event(data, endpoint, webhook=None, headers=None):
     """Prepare payload for dispatch"""
