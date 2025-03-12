@@ -2,6 +2,8 @@ from django.db.models import ManyToManyField, Model
 
 from django_resilient_webhook.signals import connect_signals_to_class
 
+from .webhook import Webhook
+
 
 ALLOWED_WEBHOOK_EVENTS = ["create", "update", "delete"]
 
@@ -30,6 +32,15 @@ class WebhookableModel(Model):
     def post(self, webhook_version, endpoint_label, payload, headers=None):
         for webhook in self.webhooks.filter(version=webhook_version, active=True):
             webhook.post(endpoint_label, payload, headers=headers)
+
+    def get_all_webhooks(self, **kwargs):
+        return self.get_instance_webhooks(**kwargs).union(self.get_model_webhooks(**kwargs))
+
+    def get_instance_webhooks(self, **kwargs):
+        return self.webhooks.filter(**kwargs)
+
+    def get_model_webhooks(self, **kwargs):
+        return Webhook.objects.filter(label=self.__class__.__name__.lower(), **kwargs)
 
     class Meta:
         abstract = True

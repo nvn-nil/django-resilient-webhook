@@ -42,13 +42,6 @@ def save_webhookable_subclass(**kwargs):
                 pass
 
 
-def get_model_webhooks(instance):
-    from django_resilient_webhook.models import Webhook
-
-    webhooks = Webhook.objects.filter(label=instance.__class__.__name__.lower(), active=True)
-    return webhooks
-
-
 def trigger_webhook(webhooks, label, data):
     for webhook in webhooks:
         if webhook.active:
@@ -58,7 +51,7 @@ def trigger_webhook(webhooks, label, data):
 def unified_signal_handler(event_label, instance, **kwargs):
     if event_label in instance.WEBHOOK_EVENTS:
         serialized_data = serialize_model_data(instance, instance.WEBHOOK_SERIALIZED_FIELDS)
-        webhooks = instance.webhooks.all().union(get_model_webhooks(instance), all=False)
+        webhooks = instance.webhooks.all().union(instance.get_model_webhooks(), all=False)
 
         trigger_webhook(kwargs.get("webhooks", webhooks), event_label, serialized_data)
 
