@@ -80,4 +80,8 @@ def serialize_model_data(instance: Model, fields: list[str], include_properties=
     if missing_fields:
         raise SerializationError(missing_fields=missing_fields, failing_properties=failing_fields)
 
-    return json.loads(json.dumps(data, cls=DjangoJSONEncoder))
+    return {
+        "model": str(instance._meta),
+        "pk": str(instance.id),
+        "fields": json.loads(json.dumps(data, cls=DjangoJSONEncoder)),
+    }
