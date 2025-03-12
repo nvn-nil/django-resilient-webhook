@@ -21,7 +21,7 @@ class WebhookableModel(Model):
         super().__init_subclass__(**kwargs)
 
     def save(self, *args, **kwargs):
-        errored = [event for event in self.WEBHOOK_EVENTS if event not in ALLOWED_WEBHOOK_EVENTS]
+        errored = [event for event in self.WEBHOOK_EVENTS if event.split(":")[0] not in ALLOWED_WEBHOOK_EVENTS]
         if errored:
             raise TypeError(f"Event{'s' if len(errored) > 1 else ''} not allowed as WEBHOOK_EVENTS. {errored}")
 

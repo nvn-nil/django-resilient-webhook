@@ -62,17 +62,38 @@ def create_webhookable_subclass(instance, **kwargs):
     # webhook to it. So, the object already exists at the time.
     trigger_webhook(kwargs.get("webhooks", webhooks), "create", serialized_data)
 
+    create_prefixed_events = [event.split(":")[1] for event in instance.WEBHOOK_EVENTS if event.startswith("create:")]
+    for event_handler_name in create_prefixed_events:
+        if hasattr(instance, event_handler_name):
+            event_handler_attr = getattr(instance, event_handler_name)
+            if callable(event_handler_attr):
+                event_handler_attr(instance=instance, **kwargs)
+
 
 def update_webhookable_subclass(instance, **kwargs):
     serialized_data = serialize_model_data(instance, instance.WEBHOOK_SERIALIZED_FIELDS)
     webhooks = instance.webhooks.all().union(get_model_webhooks(instance), all=False)
     trigger_webhook(kwargs.get("webhooks", webhooks), "update", serialized_data)
 
+    create_prefixed_events = [event.split(":")[1] for event in instance.WEBHOOK_EVENTS if event.startswith("update:")]
+    for event_handler_name in create_prefixed_events:
+        if hasattr(instance, event_handler_name):
+            event_handler_attr = getattr(instance, event_handler_name)
+            if callable(event_handler_attr):
+                event_handler_attr(instance=instance, **kwargs)
+
 
 def delete_webhookable_subclass(instance, **kwargs):
     serialized_data = serialize_model_data(instance, instance.WEBHOOK_SERIALIZED_FIELDS)
     webhooks = instance.webhooks.all().union(get_model_webhooks(instance), all=False)
     trigger_webhook(kwargs.get("webhooks", webhooks), "delete", serialized_data)
+
+    create_prefixed_events = [event.split(":")[1] for event in instance.WEBHOOK_EVENTS if event.startswith("delete:")]
+    for event_handler_name in create_prefixed_events:
+        if hasattr(instance, event_handler_name):
+            event_handler_attr = getattr(instance, event_handler_name)
+            if callable(event_handler_attr):
+                event_handler_attr(instance=instance, **kwargs)
 
 
 def connect_signals_to_class(cls):
