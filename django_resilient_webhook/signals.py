@@ -1,8 +1,12 @@
+import logging
+
 from django.db.models.signals import m2m_changed, post_save, pre_delete
 from django.dispatch import Signal
 
 from django_resilient_webhook.utilities.model_serializer import serialize_model_data
 
+
+logger = logging.getLogger(__name__)
 
 drw_event_receive = Signal()
 drw_event_parse_success = Signal()
@@ -51,49 +55,40 @@ def trigger_webhook(webhooks, label, data):
             webhook.post(label, data, headers=None)
 
 
-def create_webhookable_subclass(instance, **kwargs):
-    serialized_data = serialize_model_data(instance, instance.WEBHOOK_SERIALIZED_FIELDS)
-    webhooks = instance.webhooks.all().union(get_model_webhooks(instance), all=False)
+def unified_signal_handler(event_label, instance, **kwargs):
+    if event_label in instance.WEBHOOK_EVENTS:
+        serialized_data = serialize_model_data(instance, instance.WEBHOOK_SERIALIZED_FIELDS)
+        webhooks = instance.webhooks.all().union(get_model_webhooks(instance), all=False)
 
-    # TODO: Handle 'create' event properly
+        trigger_webhook(kwargs.get("webhooks", webhooks), event_label, serialized_data)
+
+        sideffect_events = [
+            event.split(":")[1] for event in instance.WEBHOOK_EVENTS if event.startswith(f"{event_label}:")
+        ]
+        for event_handler_name in sideffect_events:
+            if hasattr(instance, event_handler_name):
+                event_handler_attr = getattr(instance, event_handler_name)
+                if callable(event_handler_attr):
+                    event_handler_attr(instance=instance, **kwargs)
+                else:
+                    logger.warning("%s %s is not a callable", instance.__class__.__name__, event_handler_name)
+            else:
+                logger.warning("%s does not define %s as a callable", instance.__class__.__name__, event_handler_name)
+
+
+def create_webhookable_subclass(instance, **kwargs):
     # NOTE: Create does not trigger because 'webhook' is a reverse relation and cannot
     # be directly assigned when creating webhookable mode instance
-    # This means we need to create the webhookable mode instance first before assigining
-    # webhook to it. So, the object already exists at the time.
-    trigger_webhook(kwargs.get("webhooks", webhooks), "create", serialized_data)
-
-    create_prefixed_events = [event.split(":")[1] for event in instance.WEBHOOK_EVENTS if event.startswith("create:")]
-    for event_handler_name in create_prefixed_events:
-        if hasattr(instance, event_handler_name):
-            event_handler_attr = getattr(instance, event_handler_name)
-            if callable(event_handler_attr):
-                event_handler_attr(instance=instance, **kwargs)
+    # 'create' can only be triggered by a modelname labelled Webhook with a 'create' labeled endpoint
+    unified_signal_handler("create", instance, **kwargs)
 
 
 def update_webhookable_subclass(instance, **kwargs):
-    serialized_data = serialize_model_data(instance, instance.WEBHOOK_SERIALIZED_FIELDS)
-    webhooks = instance.webhooks.all().union(get_model_webhooks(instance), all=False)
-    trigger_webhook(kwargs.get("webhooks", webhooks), "update", serialized_data)
-
-    create_prefixed_events = [event.split(":")[1] for event in instance.WEBHOOK_EVENTS if event.startswith("update:")]
-    for event_handler_name in create_prefixed_events:
-        if hasattr(instance, event_handler_name):
-            event_handler_attr = getattr(instance, event_handler_name)
-            if callable(event_handler_attr):
-                event_handler_attr(instance=instance, **kwargs)
+    unified_signal_handler("update", instance, **kwargs)
 
 
 def delete_webhookable_subclass(instance, **kwargs):
-    serialized_data = serialize_model_data(instance, instance.WEBHOOK_SERIALIZED_FIELDS)
-    webhooks = instance.webhooks.all().union(get_model_webhooks(instance), all=False)
-    trigger_webhook(kwargs.get("webhooks", webhooks), "delete", serialized_data)
-
-    create_prefixed_events = [event.split(":")[1] for event in instance.WEBHOOK_EVENTS if event.startswith("delete:")]
-    for event_handler_name in create_prefixed_events:
-        if hasattr(instance, event_handler_name):
-            event_handler_attr = getattr(instance, event_handler_name)
-            if callable(event_handler_attr):
-                event_handler_attr(instance=instance, **kwargs)
+    unified_signal_handler("delete", instance, **kwargs)
 
 
 def connect_signals_to_class(cls):
