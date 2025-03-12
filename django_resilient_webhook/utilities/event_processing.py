@@ -32,7 +32,7 @@ def respond_to_event(status_code, request, event=None, status=None):
             sender_endpoint=event["sender_endpoint"],
             sender_webhook=event["sender_webhook"],
             dispatched_utc=datetime.fromisoformat(event["dispatched"]["utc"]),
-            headers=event["headers"],
+            headers=dict(event["headers"]),
             status=status,
         )
     else:
