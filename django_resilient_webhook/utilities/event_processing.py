@@ -12,7 +12,7 @@ from django_resilient_webhook.signals import (
 )
 
 
-logger = logging.getLevelName(__file__)
+logger = logging.getLogger(__name__)
 
 
 def respond_to_event(status_code, request, event=None, status=None):
