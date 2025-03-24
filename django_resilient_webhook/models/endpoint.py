@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from django.db.models import DateTimeField, JSONField, Model, SlugField, TextField, UUIDField
+from django.db.models import BooleanField, DateTimeField, JSONField, Model, SlugField, TextField, UUIDField
 
 from django_resilient_webhook.models.event import DispatchEvent
 from django_resilient_webhook.utilities.create_task import create_http_task
@@ -18,6 +18,7 @@ class Endpoint(Model):
     )
 
     id = UUIDField(primary_key=True, default=uuid4, help_text="Universally Unique ID")
+    active = BooleanField(default=True, blank=False, null=False)
     url = TextField(null=False, blank=False, help_text="URL to an post-able endpoint")
     label = SlugField(
         null=False,

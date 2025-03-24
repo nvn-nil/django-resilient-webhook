@@ -1,12 +1,17 @@
+import logging
+
 from django.db.models.signals import m2m_changed, post_save, pre_delete
 from django.dispatch import Signal
 
 from django_resilient_webhook.utilities.model_serializer import serialize_model_data
 
 
+logger = logging.getLogger(__name__)
+
 drw_event_receive = Signal()
 drw_event_parse_success = Signal()
-drw_event_parse_fail = Signal()
+drw_event_reject = Signal()
+drw_event_discard = Signal()
 
 
 def save_webhookable_subclass(**kwargs):
@@ -39,48 +44,47 @@ def save_webhookable_subclass(**kwargs):
 
 def trigger_webhook(webhooks, label, data):
     for webhook in webhooks:
-        webhook.post(label, data, headers=None)
+        if webhook.active:
+            webhook.post(label, data, headers=None)
+
+
+def unified_signal_handler(event_label, instance, **kwargs):
+    if event_label in instance.WEBHOOK_EVENTS:
+        serialized_data = serialize_model_data(instance, instance.WEBHOOK_SERIALIZED_FIELDS)
+        webhooks = instance.webhooks.all().union(instance.get_model_webhooks(), all=False)
+
+        trigger_webhook(kwargs.get("webhooks", webhooks), event_label, serialized_data)
+
+        sideffect_events = [
+            event.split(":")[1] for event in instance.WEBHOOK_EVENTS if event.startswith(f"{event_label}:")
+        ]
+        for event_handler_name in sideffect_events:
+            if hasattr(instance, event_handler_name):
+                event_handler_attr = getattr(instance, event_handler_name)
+                if callable(event_handler_attr):
+                    event_handler_attr(instance=instance, **kwargs)
+                else:
+                    logger.warning("%s %s is not a callable", instance.__class__.__name__, event_handler_name)
+            else:
+                logger.warning("%s does not define %s as a callable", instance.__class__.__name__, event_handler_name)
 
 
 def create_webhookable_subclass(instance, **kwargs):
-    # TODO: Handle 'create' event properly
     # NOTE: Create does not trigger because 'webhook' is a reverse relation and cannot
     # be directly assigned when creating webhookable mode instance
-    # This means we need to create the webhookable mode instance first before assigining
-    # webhook to it. So, the object already exists at the time.
-    serialized_data = serialize_model_data(instance, instance.WEBHOOK_SERIALIZED_FIELDS)
-    trigger_webhook(kwargs.get("webhooks", instance.webhooks.all()), "create", serialized_data)
+    # 'create' can only be triggered by a modelname labelled Webhook with a 'create' labeled endpoint
+    unified_signal_handler("create", instance, **kwargs)
 
 
 def update_webhookable_subclass(instance, **kwargs):
-    serialized_data = serialize_model_data(instance, instance.WEBHOOK_SERIALIZED_FIELDS)
-    trigger_webhook(kwargs.get("webhooks", instance.webhooks.all()), "update", serialized_data)
+    unified_signal_handler("update", instance, **kwargs)
 
 
 def delete_webhookable_subclass(instance, **kwargs):
-    serialized_data = serialize_model_data(instance, instance.WEBHOOK_SERIALIZED_FIELDS)
-    trigger_webhook(kwargs.get("webhooks", instance.webhooks.all()), "delete", serialized_data)
+    unified_signal_handler("delete", instance, **kwargs)
 
 
 def connect_signals_to_class(cls):
     post_save.connect(save_webhookable_subclass, sender=cls, weak=False)
     pre_delete.connect(delete_webhookable_subclass, sender=cls, weak=False)
     m2m_changed.connect(save_webhookable_subclass, sender=cls.webhooks.through, weak=False)
-
-
-# @receiver(pre_save, sender=Webhook)
-# def webhook_pre_save(instance, **kwargs):
-#     instance.__content_object = Webhook.objects.get(pk=instance.id).content_object if instance.id else None
-
-
-# @receiver(post_save, sender=Webhook)
-# def webhook_post_save(instance, **kwargs):
-#     # NOTE: This is a workaround for 'eventual consistency' with creation. We cannot trigger the 'create'
-#     # event webhook because of reasons mentioned in create_webhookable_subclass method notes.
-#     # As a hackish solution, we trigger the create event when a webhook is assigned a a content_object
-#     # We can assume the moment the object is assigned to a webhook to be creation of the resources w.r.t
-#     # the webhook alerted service.
-#     # NOTE: This might mean that duplicate model instance create events can be triggered if webhook changes
-#     if instance.__content_object != instance.content_object and instance.content_object:
-#         serialized_data = serialize_model_data(instance, instance.WEBHOOK_SERIALIZED_FIELDS)
-#         trigger_webhook(instance.webhooks.all(), "create", serialized_data)

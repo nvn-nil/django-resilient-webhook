@@ -1,6 +1,6 @@
 from django.dispatch import receiver
 
-from django_resilient_webhook.signals import drw_event_parse_fail, drw_event_parse_success, drw_event_receive
+from django_resilient_webhook.signals import drw_event_parse_success, drw_event_receive, drw_event_reject
 
 
 @receiver(drw_event_receive)
@@ -15,6 +15,6 @@ def success_handler(payload, sender_endpoint, sender_webhook, dispatched, header
     )
 
 
-@receiver(drw_event_parse_fail)
+@receiver(drw_event_reject)
 def parse_fail_handler(request, **kwargs):
-    print("drw_event_parse_fail", request, request.body)
+    print("drw_event_reject", request, request.body)
